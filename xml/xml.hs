@@ -162,8 +162,37 @@ expandXSL xsl source
     root = Element "/" [] [source] 
 
 expandXSL' :: Context -> XSL -> [XML]
-expandXSL' 
-  = undefined
+expandXSL' c (Element "value-of" [("select", "")] xs) = [(getValue c)]
+expandXSL' c (Element "value-of" [("select", x'@(x:xp))] xs)
+  | x == '.' = expandXSL' c (Element "value-of" [("select", xp)] xs)
+  | x == '@' = [Text (getAttribute xp c)]
+  | elem '/' x' = expandXSL' c' (Element "value-of" [("select", r)] xs)
+  | otherwise = [getValue (getChild x' c)]
+    where 
+      (n, _:r) = break (=='/') x'
+      c'
+        | getChild' n c == (Text "") = c 
+        | otherwise = getChild' n c
+
+
+getChild' :: String -> XML -> XML
+getChild' "" x = x 
+getChild' "/" x = x 
+getChild' "." x = x 
+getChild' s x = fromMaybe (Text "") (listToMaybe (getChildren s x))
+
+
+find :: XML -> XML
+find t@(Text _) = t
+find (Element _ _ []) = Text "" 
+find (Element _ _ [e]) = find e
+find (Element _ _ (e:es)) = Text (t')
+  where 
+    (Text t1) = find e
+    (Text t2) = find (Element "" [] es)
+    t'
+      | t1 == ""  = t2
+      | otherwise = t1
 
 -------------------------------------------------------------------------
 -- Test data for Parts I and II
